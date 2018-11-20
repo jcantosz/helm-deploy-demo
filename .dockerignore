@@ -1,0 +1,5 @@
+helm
+node_modules
+Dockerfile
+Jenkinsfile
+helm-upgrade.sh

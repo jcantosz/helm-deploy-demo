@@ -1,0 +1,23 @@
+{
+  "name": "helm-deploy-demo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node src/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jcantosz/helm-deploy-demo.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jcantosz/helm-deploy-demo/issues"
+  },
+  "homepage": "https://github.com/jcantosz/helm-deploy-demo#readme",
+  "dependencies": {
+    "express": "^4.16.4"
+  }
+}
