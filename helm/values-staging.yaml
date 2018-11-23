@@ -7,7 +7,7 @@ replicaCount: 1
 image:
   repository: jcantosz/node-sample
   tag: staging
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 nameOverride: ""
 fullnameOverride: ""
