@@ -1,14 +1,21 @@
 node {
-    imageName = "jcantosz/node-sample"
+    def imageName = "jcantosz/node-sample"
 
-    serverUrl = "https://192.168.99.100:8443"
-    registryURI = "https://registry-1.docker.io"
-    vaultURI = "http://vault:8200/v1"
-    clairURI = "http://clair:6060"
-    registrySecret = "dockerhub"
+    def serverUrl = "https://192.168.99.100:8443"
+    def registryURI = "https://registry-1.docker.io"
+    def vaultURI = "http://vault:8200/v1"
+    def clairURI = "http://clair:6060"
+    def registrySecret = "dockerhub"
+
     def dockerImage
+
+    def deployEnv
+    def gitCommit
+
     stage("Check out") {
         def scmData = checkout scm
+
+        gitCommit = scmData.GIT_COMMIT
 
         if ( scmData.GIT_BRANCH == "develop" ){
           deployEnv = "staging"
@@ -18,7 +25,7 @@ node {
     }
 
     stage("Build"){
-        dockerImage = docker.build("${imageName}:${deployEnv}", "--pull .")
+        dockerImage = docker.build("${imageName}:${gitCommit}", "--pull .")
     }
 
     stage("Test"){
@@ -30,6 +37,7 @@ node {
     stage("Push") {
         docker.withRegistry(registryURI, registrySecret){
             dockerImage.push()
+            dockerImage.push(deployEnv)
         }
     }
 
@@ -46,7 +54,7 @@ node {
                 export CLAIR_TIMEOUT=10
                 export CLAIR_THRESHOLD=0
                 export CLAIR_OUTPUT=Critical
-                klar ${imageName}:${deployEnv}
+                klar ${imageName}:${gitCommit}
             """)
 
             if(scanStatus != 0){
@@ -73,7 +81,7 @@ node {
 
                 # For helm to read from a file, the file must be in helms root
                 curl --header "X-Vault-Token: \${TOKEN}" \
-                    ${vaultURI}/secret/data/jenkins/production \
+                    ${vaultURI}/secret/data/jenkins/${deployEnv} \
                     | jq -r .data.data.foo > helm/secrets.toml
             """
         }
@@ -90,6 +98,7 @@ node {
                   --namespace ${deployEnv} \
                   --install \
                   --values ./helm/values-${deployEnv}.yaml \
+                  --set image.tag=${gitCommit} \
                   ./helm
             """
         }
