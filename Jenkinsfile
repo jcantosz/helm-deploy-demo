@@ -31,6 +31,7 @@ node {
     stage("Test"){
         dockerImage.withRun('--name test --network test'){
             sh "echo \$(curl -sL test:3000)"
+            sh "echo \$(curl -sL test:3000/es)"
         }
     }
 
@@ -97,6 +98,7 @@ node {
                   ${deployEnv} \
                   --namespace ${deployEnv} \
                   --install \
+                  --wait \
                   --values ./helm/values-${deployEnv}.yaml \
                   --set image.tag=${gitCommit} \
                   ./helm
