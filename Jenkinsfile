@@ -26,7 +26,7 @@ node {
           deployEnv = "production"
         } else{
           deployEnv = "none"
-          error "Building unknown brnach ${scmData.GIT_BRANCH}"
+          error "Building unknown branch ${scmData.GIT_BRANCH}"
         }
     }
 
