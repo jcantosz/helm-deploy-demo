@@ -12,6 +12,9 @@ node {
     def deployEnv
     def gitCommit
 
+    /**
+     * Check out the code and determine the branch
+    **/
     stage("Check out") {
         def scmData = checkout scm
 
@@ -21,20 +24,47 @@ node {
           deployEnv = "staging"
         } else if ( scmData.GIT_BRANCH == "master" ){
           deployEnv = "production"
+        } else{
+          deployEnv = "none"
+          error "Building unknown brnach ${scmData.GIT_BRANCH}"
         }
     }
 
+    /**
+     * Build the docker image using the git commit as a tag
+    **/
     stage("Build"){
         dockerImage = docker.build("${imageName}:${gitCommit}", "--pull .")
     }
 
+    /**
+     * Test the image
+    **/
     stage("Test"){
         dockerImage.withRun('--name test --network test'){
+            sh """
+              RES=\$(curl -s -o /dev/null -w "%{http_code}" test:3000)
+              if [ "\$RES" != "200" ]; then
+                echo "Expecting 200, but got \$RES"
+                exit 1
+              fi
+            """
             sh "echo \$(curl -sL test:3000)"
+
+            sh """
+              RES=\$(curl -s -o /dev/null -w "%{http_code}" test:3000/es)
+              if [ "\$RES" != "200" ]; then
+                echo "Expecting 200, but got \$RES"
+                exit 1
+              fi
+            """
             sh "echo \$(curl -sL test:3000/es)"
         }
     }
 
+    /**
+     * Push the image to the registry
+    **/
     stage("Push") {
         docker.withRegistry(registryURI, registrySecret){
             dockerImage.push()
@@ -42,6 +72,9 @@ node {
         }
     }
 
+    /**
+     * Run image scan with clair (klar uses DOCKER_USER & DOCKER_PASSWORD for private registries)
+    **/
     stage("Image scan gate (critical and above)"){
         withCredentials([usernamePassword(credentialsId: registrySecret,
                 usernameVariable: 'DOCKER_USER',
@@ -66,6 +99,9 @@ node {
         }
     }
 
+    /**
+     * Pull secrets from Vault into a file for use with Helm
+    **/
     stage("Translate secrets"){
         withCredentials([usernamePassword(credentialsId: 'vault-role',
                 usernameVariable: 'ROLE_ID',
@@ -87,6 +123,10 @@ node {
             """
         }
     }
+
+    /**
+     * Helm Deploy
+    **/
     stage("Deploy"){
         withKubeConfig([credentialsId: 'kubernetes-sa',
                 serverUrl: serverUrl
@@ -105,6 +145,10 @@ node {
             """
         }
     }
+
+    /**
+     * Clean Jenkins Workspace
+    **/
     stage("Clean up"){
         sh """
             rm -rf ./*
